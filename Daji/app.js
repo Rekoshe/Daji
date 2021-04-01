@@ -1,3 +1,6 @@
 'use strict';
 
-console.log('Hello world');
+const dotenv = require('dotenv');
+dotenv.config();
+
+console.log(process.env.TOKEN);
