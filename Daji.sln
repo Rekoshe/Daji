@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30309.148
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9092AA53-FB77-4645-B42D-1CCCA6BD08BD}") = "Daji", "Daji\Daji.njsproj", "{8416DF23-80FD-4A09-A597-A98748AD25F3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8416DF23-80FD-4A09-A597-A98748AD25F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8416DF23-80FD-4A09-A597-A98748AD25F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8416DF23-80FD-4A09-A597-A98748AD25F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8416DF23-80FD-4A09-A597-A98748AD25F3}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2718E675-1B6B-48E4-8194-4ACBFA7DB70D}
+	EndGlobalSection
+EndGlobal

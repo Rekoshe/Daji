@@ -1,0 +1,9 @@
+{
+  "name": "daji",
+  "version": "0.0.0",
+  "description": "Daji",
+  "main": "app.js",
+  "author": {
+    "name": ""
+  }
+}
