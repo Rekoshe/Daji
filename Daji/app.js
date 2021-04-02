@@ -57,5 +57,7 @@ function commandHandler(message) {
     } catch (error) {
         console.error(error);
         message.reply('there was an error trying to execute that command!');
+    } finally {
+        console.log(`${message.author.username} invoked ${command.name}`);
     }
 }
