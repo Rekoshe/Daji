@@ -5,15 +5,25 @@ const usersFilePath = 'users.json'
 const fs = require('fs');
 const User = require('./user'); //new User(id, prefix, name);
 
-let coco = new User('f', 'f');
-let users = [coco];
+let users = [];
+let usersString;
 
 
-fs.writeFileSync(usersFilePath, JSON.stringify(users), (err) => { });
-const usersString = fs.readFileSync(usersFilePath, { encoding: 'utf-8' });
+if (fs.existsSync(usersFilePath)) {
+    usersString = fs.readFileSync(usersFilePath, { encoding: 'utf-8' });
 
-users = JSON.parse(usersString);
-console.log(usersString);
+    if (!(usersString === "")) {
+        users = JSON.parse(usersString);
+        
+    }
+
+} else {
+    fs.writeFileSync(usersFilePath, "");
+}
+
+
+
+
 
 
 
@@ -45,10 +55,12 @@ for (const folder of commandFolders) {
 
 
 function checkForUsers(message) {
-    if (message.author.bot) { return;}
+    
 
-    for (const user of users) {
-        if (user.author === message.author) {
+    for (let user of users) {
+        
+        //console.log(user.author.id);
+        if (user.author.id === message.author.id) {
             prefix = user.prefix;
             return user;
         }
@@ -65,28 +77,48 @@ function checkForUsers(message) {
     return newUser;
 }
 
+function OnReady() {
+    client.user.setActivity('for $help', { type: 'WATCHING' });
+}
 
-client.once('ready', () => { console.log("Ready !"); });
+
+
+client.once('ready', OnReady);
+
+
+
 client.login(process.env.TOKEN);
 
+
+
+
 client.on('message', commandHandler);
+
 
 //console.log(aUser.id);
 
 function commandHandler(message) {
 
+    if (message.author.bot) {
+        return;
+    }
+
     let user = checkForUsers(message);
 
+    
 
-    if (!message.content.startsWith(prefix) || message.author.bot) {
+
+    if (!message.content.startsWith(user.prefix)) {
         if (message.channel.type === 'dm') {
             console.log(`${message.author.username}: ${message.content}`);
         }
         return;
     }
 
-    const args = message.content.slice(prefix.length).trim().split(/ +/);
+    const args = message.content.slice(user.prefix.length).trim().split(/ +/);
     const commandName = args.shift().toLowerCase();
+
+    
 
     //console.log(commandName);
     if (!client.commands.has(commandName)) return;
@@ -96,14 +128,23 @@ function commandHandler(message) {
     if (command.args && !args.length) {
         let reply = `You didn't provide any arguments, ${message.author}!`;
         if (command.usage) {
-            reply += `\nThe proper usage would be: \`${prefix}${command.name} ${command.usage}\``;
+            reply += `\nThe proper usage would be: \`${user.prefix}${command.name} ${command.usage}\``;
         }
 
         return message.channel.send(reply);
     }
 
+    
+
     try {
         command.execute(message, args, user);
+        
+        
+        if (command.userCommand) {
+            fs.writeFile(usersFilePath, JSON.stringify(users), (err) => { });
+            console.log("users re written");
+        }
+
     } catch (error) {
         console.error(error);
         message.reply('there was an error trying to execute that command!');
