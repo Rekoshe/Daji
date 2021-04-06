@@ -1,6 +1,8 @@
 'use strict';
 let prefix = '$';
-const usersFilePath = 'users.json'
+const usersFilePath = 'users.json';
+const viewerRoleName = 'viewer';
+const streamerRoleName = 'strimmer';
 
 const fs = require('fs');
 const User = require('./user'); //new User(id, prefix, name);
@@ -37,7 +39,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const Discord = require('discord.js');
-const client = new Discord.Client();
+const client = new Discord.Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION', 'USER', 'GUILD_MEMBER' ] });
 
 client.commands = new Discord.Collection();
 const commandFolders = fs.readdirSync('./commands');
@@ -77,22 +79,98 @@ function checkForUsers(message) {
     return newUser;
 }
 
-function OnReady() {
-    client.user.setActivity('for $help', { type: 'WATCHING' });
+function checkForRole(guild, roleName) {
+    for (const role of guild.roles.cache.array()) {
+        if (role.name === roleName) {
+            return role;     
+        }
+    }
+    return guild.roles.create({
+        data: {
+            name: roleName,
+            color: 'YELLOW'
+        }
+    }).catch(console.error)
 }
 
 
+function OnReady() {
+    client.user.setActivity('for $help', { type: 'WATCHING' });
+
+    for (const guild of client.guilds.cache.array()) {
+        if (guild.available) {
+            checkForRole(guild, viewerRoleName);
+            checkForRole(guild, streamerRoleName);
+        }
+    }
+    
+}
+
+function onPresenceUpdate(oldPres, newPres) {
+    console.log(newPres.streaming);
+    if (oldPres.streaming === newPres.streaming) {
+        return;
+    }
+
+    let streamerRole;
+
+    for (const role of newPres.member.roles.cache.array()) {
+        if (role.name === streamerRoleName) {
+            streamerRole = role;
+            break;
+        }
+    }
+
+    if (!streamerRole) { return; }
+
+
+
+    if (newPres.streaming) {
+        
+
+        for (const role of newPres.guild.roles.cache.array()) {
+            if (role.name === viewerRoleName) {
+
+                if (!role.members) {
+                    console.log("role doesn't have memebers");
+                    continue;
+                }
+
+                //if (!role.members.cache) {
+                //    console.log(role.members.);
+                //    continue;
+                //}
+
+                let data = "";
+
+                for (const member of role.members.array()) {
+                    data += member.user.toString();
+                    
+                }
+                for (const channel of newPres.guild.channels.cache.array()) {
+                    if (channel.type === 'text') {
+                        channel.send(data + `\n${newPres.member.user.username} started streaming!`);
+                        return;
+                    }
+                }
+                
+                // 
+            }
+        }
+        
+    }
+}
 
 client.once('ready', OnReady);
 
-
-
 client.login(process.env.TOKEN);
 
-
+client.on('voiceStateUpdate', onPresenceUpdate);
 
 
 client.on('message', commandHandler);
+
+
 
 
 //console.log(aUser.id);
@@ -104,8 +182,6 @@ function commandHandler(message) {
     }
 
     let user = checkForUsers(message);
-
-    
 
 
     if (!message.content.startsWith(user.prefix)) {
