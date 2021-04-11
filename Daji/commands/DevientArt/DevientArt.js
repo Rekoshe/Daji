@@ -1,69 +1,81 @@
 const axios = require('axios');
 
 
-const nsfw = false;
-
+const nsfw = true;
+const limit = 1;
+const browseType = 'newest';
+const timeRange = 'now';
 
 module.exports = {
     name: 'devientart',
     args: true,
-    usage: '<browseType> <tag> <howMany> <timeRange> \nex: `devientart popular anime 1 now`',
-    description: 'send some images from Deviant Art using a specified tag',
-    execute(message, args) {
-        let images;
+    numArgs : 1,
+    usage: '<tag>',
+    description: 'sends an image from Deviant Art using a specified tag',
+    async execute(message, args) {
 
-        async function formatMessage() {
-            images = await getImageSrc(args[0], args[1], args[3], args[2], nsfw);
+        const images = await getSrc(browseType, args[0], timeRange, limit, nsfw);
+
+        //console.log(images);
+        let imageSrc = '';
+        
+        for (const image of images) {
+            console.log(image.is_mature);
+            if (image.is_mature && !message.channel.nsfw) {
+                imageSrc += "This image is marked as nsfw and can't be sent in a non Nsfw channel";
+                imageSrc += `\n Here's the Url instead ${image.url}`;
+                continue;
+            }
+
+            imageSrc += image.content.src + '\n';
+
         }
 
-        formatMessage().then(() => {
-            console.log(images);
-            let imageSrc = images[0].content.src;
-            for (var i = 0; i < images.length; i++) {
-                imageSrc += images[i].content.src + '\n';
+        if (!images.length) {
+            message.channel.send("Sorry no results were found.");
+            return;
+        }
 
-            }
-            message.channel.send(imageSrc);
-        }).catch(reason => {
-            console.log(reason);
-        })
-
-        formatMessage();
         
+        //console.log(images);
+        message.channel.send(imageSrc);
     }
 }
 
-async function getImageSrc(browseType, querry, timeRange, limit, nsfw) {
+
+
+
+async function getSrc(browseType, querry, timeRange, limit, nsfw) {
+
     let baseURL = "https://www.deviantart.com/oauth2/token?";
     let accessTokenRequest = `${baseURL}grant_type=${process.env.grant_type}&client_id=${process.env.clientId}&client_secret=${process.env.clietnSecret}`;
     let access_token;
 
     await axios.get(accessTokenRequest).then(response => {
         access_token = response.data.access_token;
-        getSrc(access_token, browseType, querry, timeRange, limit, nsfw).then((value) => {
-            return value;
-        })
     }).catch(reason => {
         console.log(reason);
     })
 
-    
-}
+    //console.log( "got token: "+  access_token);
 
-
-
-async function getSrc(token, browseType, querry, timeRange, limit, nsfw) {
     let imageRequest = "https://www.deviantart.com/api/v1/oauth2/browse/";
     imageRequest += `${browseType}?`;
     imageRequest += `q=${querry}&`;
-    imageRequest += `timerange=${timeRange}&`;
+    //imageRequest += `timerange=${timeRange}&`;
     imageRequest += `limit=${limit}&`;
     imageRequest += `with_session=false&mature_content=${nsfw}&`;
-    imageRequest += `access_token=${token}`;
+    imageRequest += `access_token=${access_token}`;
+
+    let results;
 
     await axios.get(imageRequest).then(response => {
-        return response.data.results;     
+        //console.log(response);
+        results = response.data.results; 
     }).then(reason => {
         console.log(reason);
     })
+
+    //console.log(results);
+    return results;
 }

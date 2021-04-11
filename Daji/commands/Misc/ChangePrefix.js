@@ -1,6 +1,7 @@
 module.exports = {
 	name: 'changeprefix',
 	args: true,
+	numArgs: 1,
 	usage: '<prefix>',
 	userCommand: true,
 	description: 'change your prefix!!',

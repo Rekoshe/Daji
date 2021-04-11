@@ -212,8 +212,8 @@ function commandHandler(message) {
     
 
     const command = client.commands.get(commandName);
-    if (command.args && !args.length) {
-        let reply = `You didn't provide any arguments, ${message.author}!`;
+    if (command.args && (!args.length || args.length > command.numArgs )) {
+        let reply = `This is not how you use this command, ${message.author}! \nThis command takes ${command.numArgs} arguments`;
         if (command.usage) {
             reply += `\nThe proper usage would be: \`${user.prefix}${command.name} ${command.usage}\``;
         }
