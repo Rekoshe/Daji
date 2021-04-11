@@ -126,7 +126,17 @@ function onPresenceUpdate(oldPres, newPres) {
 
 
     if (newPres.streaming) {
-        
+
+        let game = 'something';
+
+        //get the game they're streaming
+        for (const activity of newPres.member.user.presence.activities) {
+            if (activity.type === 'PLAYING') {
+                game = activity.name;
+                break;
+            }
+        }
+
 
         for (const role of newPres.guild.roles.cache.array()) {
             if (role.name === viewerRoleName) {
@@ -142,6 +152,7 @@ function onPresenceUpdate(oldPres, newPres) {
                 //}
 
                 let data = "";
+                
 
                 for (const member of role.members.array()) {
                     data += member.user.toString();
@@ -149,7 +160,7 @@ function onPresenceUpdate(oldPres, newPres) {
                 }
                 for (const channel of newPres.guild.channels.cache.array()) {
                     if (channel.type === 'text') {
-                        channel.send(data + `\n${newPres.member.user.username} started streaming!`);
+                        channel.send(data + `\n${newPres.member.user.username} started streaming ${game}!`);
                         return;
                     }
                 }
