@@ -1,87 +1,72 @@
 'use strict';
-let prefix = '$';
-const usersFilePath = 'users.json';
 const viewerRoleName = 'viewer';
 const streamerRoleName = 'strimmer';
-
-const fs = require('fs');
-const User = require('./user'); //new User(id, prefix, name);
-
-let users = [];
-let usersString;
-
-
-if (fs.existsSync(usersFilePath)) {
-    usersString = fs.readFileSync(usersFilePath, { encoding: 'utf-8' });
-
-    if (!(usersString === "")) {
-        users = JSON.parse(usersString);
-        
-    }
-
-} else {
-    fs.writeFileSync(usersFilePath, "");
-}
-
-
-
-
-
-
-
-
-//fs.appendFile('users.json', jsonString, (err) => {
-//    if (err) throw err;
-//});
-
+const subsFilePath = 'subscribers.json';
+const gamesFilePath = 'popularGames.json';
+const fs = require('node:fs');
+//const Sub = require('subscriber.js');
 
 const dotenv = require('dotenv');
 dotenv.config();
 
-const Discord = require('discord.js');
-const client = new Discord.Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION', 'USER', 'GUILD_MEMBER' ] });
-
-client.commands = new Discord.Collection();
-const commandFolders = fs.readdirSync('./commands');
-
-for (const folder of commandFolders) {
-    const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('js'));
-
-    for (const file of commandFiles) {
-        const command = require(`./commands/${folder}/${file}`);
-        client.commands.set(command.name, command);
+const { Client, Collection, Intents } = require('discord.js');
+const client = new Client({
+    intents: [
+        Intents.FLAGS.GUILDS,
+        Intents.FLAGS.GUILD_VOICE_STATES,
+        Intents.FLAGS.GUILD_MEMBERS,
+        Intents.FLAGS.GUILD_PRESENCES
+    ]
     }
+);
+
+client.commands = new Collection();
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+
+for (const file of commandFiles) {
+    const command = require(`./commands/${file}`);
+    // Set a new item in the Collection
+    // With the key as the command name and the value as the exported module
+    client.commands.set(command.data.name, command);
 }
 
+let subsList = [];
+let usersString;
 
+if (fs.existsSync(subsFilePath)) {
+    usersString = fs.readFileSync(subsFilePath, { encoding: 'utf-8' });
 
-
-function checkForUsers(message) {
-    
-
-    for (let user of users) {
-        
-        //console.log(user.author.id);
-        if (user.author.id === message.author.id) {
-            prefix = user.prefix;
-            return user;
-        }
+    if (!(usersString === "")) {
+        subsList = JSON.parse(usersString);
 
     }
 
-    prefix = '$';
-    const newUser = new User(message.author, prefix);
+} else {
+    fs.writeFileSync(subsFilePath, "");
+}
 
-    users.push(newUser);
-    fs.writeFile(usersFilePath, JSON.stringify(users), (err) => { });
-    //console.log("New user!: " + message.author.username);
-    message.channel.send("New User!: " + message.author.username);
-    return newUser;
+let listOfPopularGames = [];
+let gamesString;
+
+if (fs.existsSync(gamesFilePath)) {
+    gamesString = fs.readFileSync(gamesFilePath, { encoding: 'utf-8' });
+
+    if (!(gamesString === "")) {
+        listOfPopularGames = JSON.parse(gamesString);
+
+    }
+
+} else {
+    fs.writeFileSync(gamesFilePath, "");
 }
 
 function checkForRole(guild, roleName) {
-    for (const role of guild.roles.cache.array()) {
+    for (const role of guild.roles.cache.values()) {
         if (role.name === roleName) {
+
+            //debug:
+            //console.log(`role found: ${roleName}`);
+
             return role;     
         }
     }
@@ -93,56 +78,347 @@ function checkForRole(guild, roleName) {
     }).catch(console.error)
 }
 
-
 function OnReady() {
-    client.user.setActivity('for $help', { type: 'WATCHING' });
 
-    for (const guild of client.guilds.cache.array()) {
+    client.user.setActivity('for streamers', { type: 'WATCHING' });
+
+    for (const guild of client.guilds.cache.values()) {
         if (guild.available) {
+
+            //debug:
+            //console.log(`guild available: ${guild}`);
+
             checkForRole(guild, viewerRoleName);
             checkForRole(guild, streamerRoleName);
         }
     }
+
+    console.log("Ready");
     
 }
 
-function onPresenceUpdate(oldPres, newPres) {
-    console.log(newPres.streaming);
-    if (oldPres.streaming === newPres.streaming) {
+async function partyFinder(oldState, newState) {
+    if (newState.equals(oldState)) {
+
+        //debug:
+        console.log("the oldstate is the same as new state");
+
+        return;
+    }
+
+    let channel = newState.member.voice.channel;
+
+    if (!channel) {
+
+        //debug:
+        //console.log(`member ${newState.member.user.username} is not in a voiceChannel in ${newState.guild.name}`);
+
+        return;
+    }
+
+    if (channel.members.size > 1) {
+
+        //debug
+        console.log(`channel ${channel.name} has more than 1 member`);
+
+        let players = new Map();
+
+        for (const member of channel.members.values()) {
+
+            if (!member.presence) {
+
+                //debug:
+                console.log(`member ${member.user.username} does not have a presence`);
+                continue;
+
+            }
+
+            for (const activity of member.presence.activities) {
+
+                if (activity.type === 'PLAYING') {
+                    players.set(member, activity.name);
+
+                    //debug
+                    console.log(`found ${member.user.username} playing ${activity.name}`);
+                }
+            }
+        }
+
+        if (players.size <= 1) {
+
+            //debug:
+            console.log("not enough players playing games to call it a party")
+
+            return;
+        }
+
+        let numOfDuplicates = 0;
+        let duplicate = "";
+
+        players.forEach(function (game, player) {
+            if (duplicate.length == 0) {
+                duplicate = game;
+            }
+            if (duplicate === game) {
+                numOfDuplicates++;
+            }
+        });
+
+        if (numOfDuplicates < 1) {
+
+            //debug
+            console.log("no two players playing the same game were found");
+
+            return;
+
+        }
+
+        let membersplaying = [];
+
+        //game found with players
+        console.log(`game being played by multiple people is ${duplicate}`);
+        players.forEach(function (game, player) {
+            if (game === duplicate) {
+                membersplaying.push(player);
+            }
+        })
+
+        if (membersplaying.length <= 1) {
+            //debug:
+            console.log("error in collecting members");
+            return;
+        }
+
+        let data = "";
+
+        for (const playername of membersplaying) {
+            data += `${playername.user.username} `;
+
+            if (!(playername == membersplaying[membersplaying.length - 1])) {
+                data += "and ";
+            }
+        }
+
+        for (const channel of newState.guild.channels.cache.values()) {
+            if (channel.type === 'GUILD_TEXT') {
+
+                //debug
+                //console.log(`to be sent in ${channel}`);
+
+                await channel.send(data + `are playing ${duplicate}! \n@everyone come chill`);
+                return;
+
+            }
+
+        }
+
+    } else {
+
+        //debug
+        console.log(`channel ${channel.name} doesn't have enough members`);
+    }
+}
+
+function addToPopularGames(newState) {
+    let detectedGame;
+
+    if (newState == null) {
+        return;
+    }
+
+    if (newState.activities.length == 0) {
+        return;
+    }
+
+    // duplicate code, clean this later
+    for (const activity of newState.activities) {
+        if (activity.type == 'PLAYING') {
+            detectedGame = activity.name;
+            break;
+        }
+    }
+
+    if (!detectedGame) {
+        return;
+    }
+
+    for (const game of listOfPopularGames) {
+        if (game === detectedGame) {
+            return;
+        }
+    }
+
+    listOfPopularGames.push(detectedGame);
+
+    fs.writeFile(gamesFilePath, JSON.stringify(listOfPopularGames), (err) => { });
+
+    console.log(`${detectedGame} added to list of popular games`);
+}
+
+async function presenceStateUpdate(oldState, newState) {
+
+    addToPopularGames(oldState);
+    addToPopularGames(newState);
+
+    let detectedGame;
+
+    if (newState.activities.length == 0) {
+
+        //debug
+        //console.log("no activities are in the new state");
+
+        return;
+    }
+
+    // duplicate code, clean this later
+    for (const activity of newState.activities) {
+        if (activity.type == 'PLAYING') {
+            detectedGame = activity.name;
+
+            //debug:
+            //console.log(`${detectedGame} is being played`);
+
+            break;
+        }
+    }
+
+    if (!detectedGame) {
+
+        //debug:
+        //console.log(`no game is being played`);
+
+        return;
+    }
+
+    let playerName;
+    let subscriberList = [];
+
+    for (const subscriber of subsList) {
+
+        
+
+        if (newState.guild.id === subscriber.guild.id) {
+
+            if (subscriber.user.id === newState.user.id) {
+
+                //debug:
+                //console.log("prevented noti from being sent to the same user");
+
+                return;
+            }
+
+            //debug:
+            //console.log("new state is from one of the subs guild");
+
+            for (const game of subscriber.games) {
+                if (detectedGame === game) {
+                    playerName = newState.user.username;
+                    subscriberList.push(subscriber);
+
+                    //debug:
+                    //console.log(`found subscriber ${subscriber.user.username} is subbed to ${game}`);
+
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!playerName || !subscriberList) {
+
+        //console.log("nothing has been found");
+
+        return;
+    }
+
+    for (const subscriberObj of subscriberList) {
+
+
+
+        client.users.fetch(subscriberObj.user.id).then(function sendDM(user) {
+
+            user.send(`${playerName} has just started playing ${detectedGame}!`).then(function log() {
+                console.log(`${subscriberObj.user.username} has been sent a DM about ${playerName} playing ${detectedGame}`);
+            });
+
+        }, function logError(reason) {
+
+            console.log(`fetching user rejected with reason ${reason}`);
+        });
+    }
+}
+
+async function onStateUpdate(oldState, newState) {
+
+    //debug
+    //console.log(`voice state changed for ${newState.member.nickname}`);
+
+
+
+    if (oldState.streaming === newState.streaming) {
+
+        //debug:
+        //console.log("the oldstate is the same as new state");
+
         return;
     }
 
     let streamerRole;
 
-    for (const role of newPres.member.roles.cache.array()) {
+    for (const role of newState.member.roles.cache.values()) {
         if (role.name === streamerRoleName) {
+
+            //debug:
+            //console.log(`found a streamer with role ${role.name}`);
+
             streamerRole = role;
             break;
         }
     }
 
-    if (!streamerRole) { return; }
+    if (!streamerRole) {
+
+        //debug:
+        console.log("streamerRole is undefined");
+
+        return;
+    }
 
 
 
-    if (newPres.streaming) {
+    if (newState.streaming) {
+
+        //debug:
+        //console.log("detected newState.streaming");
+
+        //debug:
+        //console.log(`newState presence status for ${newState.member.nickname}`);
 
         let game = 'something';
 
         //get the game they're streaming
-        for (const activity of newPres.member.user.presence.activities) {
+        for (const activity of newState.member.presence.activities) {
             if (activity.type === 'PLAYING') {
                 game = activity.name;
+
+                //debug:
+                //console.log(`detected that streamer is playing ${game}`);
+
                 break;
             }
         }
 
 
-        for (const role of newPres.guild.roles.cache.array()) {
+        for (const role of newState.guild.roles.cache.values()) {
+
+            
             if (role.name === viewerRoleName) {
 
                 if (!role.members) {
-                    console.log("role doesn't have memebers");
+
+                    //debug:
+                    //console.log("viewer role doesn't have memebers");
+
                     continue;
                 }
 
@@ -154,88 +430,81 @@ function onPresenceUpdate(oldPres, newPres) {
                 let data = "";
                 
 
-                for (const member of role.members.array()) {
+                for (const member of role.members.values()) {
                     data += member.user.toString();
+
+                    //debug
+                    //console.log(`to be mensioned ${member}`);
                     
                 }
-                for (const channel of newPres.guild.channels.cache.array()) {
-                    if (channel.type === 'text') {
-                        channel.send(data + `\n${newPres.member.user.username} started streaming ${game}!`);
+                for (const channel of newState.guild.channels.cache.values()) {
+                    if (channel.type === 'GUILD_TEXT') {
+
+                        //debug
+                        //console.log(`to be sent in ${channel}`);
+
+                        await channel.send(data + `\n${newState.member.user.username} started streaming ${game}!`);
+
+
                         return;
+
                     }
-                }
-                
-                // 
+
+                    
+                }                             
             }
-        }
-        
+        }      
     }
+
+    //debug:
+    //console.log("something went wrong");
+
 }
 
 client.once('ready', OnReady);
 
-client.login(process.env.TOKEN);
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isCommand()) return;
 
-client.on('voiceStateUpdate', onPresenceUpdate);
+    const { commandName } = interaction;
+    const command = client.commands.get(interaction.commandName);
 
+    if (!command) return;
 
-client.on('message', commandHandler);
+    let Subscriber;
 
+    if (subsList)
+    {
+        for (const sub of subsList) {
+            if (interaction.user.id === sub.user.id) {
+                Subscriber = sub;
 
+                //debug:
+                //console.log("sub found");
 
-
-//console.log(aUser.id);
-
-function commandHandler(message) {
-
-    if (message.author.bot) {
-        return;
-    }
-
-    let user = checkForUsers(message);
-
-
-    if (!message.content.startsWith(user.prefix)) {
-        if (message.channel.type === 'dm') {
-            console.log(`${message.author.username}: ${message.content}`);
+                break;
+            }
         }
-        return;
     }
-
-    const args = message.content.slice(user.prefix.length).trim().split(/ +/);
-    const commandName = args.shift().toLowerCase();
-
-    
-
-    //console.log(commandName);
-    if (!client.commands.has(commandName)) return;
-    
-
-    const command = client.commands.get(commandName);
-    if (command.args && (!args.length || args.length > command.numArgs )) {
-        let reply = `This is not how you use this command, ${message.author}! \nThis command takes ${command.numArgs} arguments`;
-        if (command.usage) {
-            reply += `\nThe proper usage would be: \`${user.prefix}${command.name} ${command.usage}\``;
-        }
-
-        return message.channel.send(reply);
-    }
-
-    
 
     try {
-        command.execute(message, args, user);
-        
-        
-        if (command.userCommand) {
-            fs.writeFile(usersFilePath, JSON.stringify(users), (err) => { });
-            console.log("users re written");
-        }
+        await command.execute(interaction, Subscriber, subsList);
+        fs.writeFile(subsFilePath, JSON.stringify(subsList), (err) => { });
+
+        //debug:
+        console.log(`${interaction.user.username} used ${interaction.commandName}`);
 
     } catch (error) {
         console.error(error);
-        message.reply('there was an error trying to execute that command!');
-    } finally {
-        console.log(`${message.author.username} invoked ${command.name}`);
+        await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
     }
-}
+});
+
+client.on('voiceStateUpdate', onStateUpdate);
+
+client.on('presenceUpdate', presenceStateUpdate);
+
+client.login(process.env.TOKEN);
+
+
+

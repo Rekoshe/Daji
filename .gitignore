@@ -342,3 +342,6 @@ healthchecksdb
 # EnviromentVariables for Discord TOKEN
 .env
 /Daji/users.json
+/Daji/subscribers.json
+/Daji/popularGames.json
+*.sqlite

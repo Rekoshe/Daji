@@ -7,9 +7,14 @@
     "name": ""
   },
   "dependencies": {
-    "axios": "^0.21.1",
-    "discord.js": "^12.5.2",
-    "dotenv": "^8.2.0",
-    "line-reader": "^0.4.0"
+    "@discordjs/builders": "^0.13.0",
+    "@discordjs/rest": "^0.4.1",
+    "axios": "^0.21.4",
+    "discord-api-types": "^0.32.1",
+    "discord.js": "^13.6.0",
+    "dotenv": "^8.6.0",
+    "line-reader": "^0.4.0",
+    "sequelize": "^6.19.0",
+    "sqlite3": "^5.0.8"
   }
 }
