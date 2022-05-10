@@ -242,11 +242,18 @@ function addToPopularGames(newState) {
         return;
     }
 
+    let detectedGameS = detectedGame.replace(/\s/g, '').toLowerCase();
+
     for (const game of listOfPopularGames) {
-        if (game === detectedGame) {
+
+        let gameS = game.replace(/\s/g, '').toLowerCase();
+
+        if (gameS === detectedGameS) {
             return;
         }
     }
+
+    detectedGame = detectedGame.trim();
 
     listOfPopularGames.push(detectedGame);
 
@@ -310,13 +317,22 @@ async function presenceStateUpdate(oldState, newState) {
             //debug:
             //console.log("new state is from one of the subs guild");
 
+            let detectedGameS = detectedGame.replace(/\s/g, '').toLowerCase();
+
+            //debug:
+            //console.log(`${detectedGameS} has been detected`);
+
             for (const game of subscriber.games) {
-                if (detectedGame === game) {
+
+                
+                let gameS = game.replace(/\s/g, '').toLowerCase();
+
+                if (detectedGameS === gameS) {
                     playerName = newState.user.username;
                     subscriberList.push(subscriber);
 
                     //debug:
-                    //console.log(`found subscriber ${subscriber.user.username} is subbed to ${game}`);
+                    //console.log(`found subscriber ${subscriber.user.username} is subbed to ${gameS}`);
 
                     break;
                 }
@@ -337,9 +353,11 @@ async function presenceStateUpdate(oldState, newState) {
 
         client.users.fetch(subscriberObj.user.id).then(function sendDM(user) {
 
-            user.send(`${playerName} has just started playing ${detectedGame}!`).then(function log() {
+            user.send(`${playerName} has just started playing **${detectedGame}**!`).then(function log() {
                 console.log(`${subscriberObj.user.username} has been sent a DM about ${playerName} playing ${detectedGame}`);
             });
+
+            console.log(`${subscriberObj.user.username} has been sent a DM about ${playerName} playing ${detectedGame}`);
 
         }, function logError(reason) {
 
@@ -379,7 +397,7 @@ async function onStateUpdate(oldState, newState) {
     if (!streamerRole) {
 
         //debug:
-        console.log("streamerRole is undefined");
+        //console.log("streamerRole is undefined");
 
         return;
     }
@@ -443,7 +461,7 @@ async function onStateUpdate(oldState, newState) {
                         //debug
                         //console.log(`to be sent in ${channel}`);
 
-                        await channel.send(data + `\n${newState.member.user.username} started streaming ${game}!`);
+                        await channel.send(data + `\n${newState.member.user.username} started streaming **${game}**!`);
 
 
                         return;
