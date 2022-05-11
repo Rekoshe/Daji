@@ -267,6 +267,8 @@ async function presenceStateUpdate(oldState, newState) {
     addToPopularGames(oldState);
     addToPopularGames(newState);
 
+    
+
     let detectedGame;
 
     if (newState.activities.length == 0) {
@@ -289,6 +291,23 @@ async function presenceStateUpdate(oldState, newState) {
         }
     }
 
+    let OLDdetectedGame;
+    //duplicate code:
+    for (const activity of oldState.activities) {
+        if (activity.type == 'PLAYING') {
+            OLDdetectedGame = activity.name;
+
+            //debug:
+            //console.log(`${detectedGame} is being played`);
+
+            break;
+        }
+    }
+
+    if (OLDdetectedGame === detectedGame) {
+        return;
+    }
+
     if (!detectedGame) {
 
         //debug:
@@ -297,27 +316,30 @@ async function presenceStateUpdate(oldState, newState) {
         return;
     }
 
-    let playerName;
+    let playerName = newState.user.username;
     let subscriberList = [];
+
+    let detectedGameS = detectedGame.replace(/\s/g, '').toLowerCase();
 
     for (const subscriber of subsList) {
 
+        if (subscriber.user.id === newState.user.id) {
+
+            //debug:
+            //console.log("prevented noti from being sent to the same user");
+
+            continue;
+        }
         
 
         if (newState.guild.id === subscriber.guild.id) {
 
-            if (subscriber.user.id === newState.user.id) {
-
-                //debug:
-                //console.log("prevented noti from being sent to the same user");
-
-                return;
-            }
+            
 
             //debug:
             //console.log("new state is from one of the subs guild");
 
-            let detectedGameS = detectedGame.replace(/\s/g, '').toLowerCase();
+            
 
             //debug:
             //console.log(`${detectedGameS} has been detected`);
@@ -327,8 +349,11 @@ async function presenceStateUpdate(oldState, newState) {
                 
                 let gameS = game.replace(/\s/g, '').toLowerCase();
 
+                //debug:
+                //console.log(`${gameS} being compared to ${detectedGameS}`)
+
                 if (detectedGameS === gameS) {
-                    playerName = newState.user.username;
+                    
                     subscriberList.push(subscriber);
 
                     //debug:
@@ -340,12 +365,19 @@ async function presenceStateUpdate(oldState, newState) {
         }
     }
 
+    
+
     if (!playerName || !subscriberList) {
 
-        //console.log("nothing has been found");
+        //debug:
+        console.log(`${playerName} has started playing ${detectedGame} but no one is subbed to it`);
 
         return;
     }
+
+    //for (const sub of subscriberList) {
+    //    console.log(`${sub.user.username}`);
+    //}
 
     for (const subscriberObj of subscriberList) {
 
@@ -355,9 +387,11 @@ async function presenceStateUpdate(oldState, newState) {
 
             user.send(`${playerName} has just started playing **${detectedGame}**!`).then(function log() {
                 console.log(`${subscriberObj.user.username} has been sent a DM about ${playerName} playing ${detectedGame}`);
+            }, function logError(reason) {
+                    console.log(`sending DM rejected for reason ${reason}`);
             });
 
-            console.log(`${subscriberObj.user.username} has been sent a DM about ${playerName} playing ${detectedGame}`);
+            //console.log(`${subscriberObj.user.username} has been sent a DM about ${playerName} playing ${detectedGame}`);
 
         }, function logError(reason) {
 
